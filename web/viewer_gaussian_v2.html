@@ -186,6 +186,10 @@
             display: none;
         }
 
+        #overlayImage {
+            transition: opacity 0.18s ease-out;
+        }
+
         .info-panel {
             position: absolute;
             top: 8px;
@@ -408,6 +412,14 @@
                 
                 console.log('[GaussianViewer] Creating orbit controls...');
                 controls = new window.PreciseOrbitControls(camera, canvas);
+
+                // Auto-hide reference overlay during camera interaction. The overlay is a static
+                // <img> layered on top of the splat canvas at opacity 0.5; when the user orbits
+                // or zooms, the splat moves but the overlay stays in place, which looks like a
+                // ghost of the previous splat view. Fade it out as soon as the user starts
+                // manipulating the camera. resetCamera() restores it.
+                canvas.addEventListener('pointerdown', autoHideOverlay);
+                canvas.addEventListener('wheel', autoHideOverlay, { passive: true });
 
                 // Log zoom bounds and current zoom to help diagnose scroll limits.
                 console.log('[GaussianViewer] OrbitControls zoom bounds:', {
@@ -973,6 +985,21 @@
             }
         }
 
+        // Fade the reference overlay out when the user starts driving the camera.
+        // Reading from the alpha slider on restore so user-customised alpha is preserved.
+        function autoHideOverlay() {
+            const ov = document.getElementById('overlayImage');
+            if (ov && ov.src && ov.style.display !== 'none') {
+                ov.style.opacity = '0';
+            }
+        }
+        function restoreOverlay() {
+            const ov = document.getElementById('overlayImage');
+            if (!ov || !ov.src || ov.style.display === 'none') return;
+            const slider = document.getElementById('overlayAlpha');
+            ov.style.opacity = slider?.value ?? '0.5';
+        }
+
         // Reset camera to initial position
         function resetCamera() {
             if (camera && controls) {
@@ -1019,6 +1046,7 @@
                 focalScaleValue.value = 1.0;
                 applyFocalScale(1.0);
                 scheduleFrameLayoutUpdate();
+                restoreOverlay();
             }
         }
 
